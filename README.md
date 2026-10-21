@@ -1,23 +1,34 @@
 # Ride-hailing
-Клиентский код вынужден знать внутреннее устройство всех трех подсистем (9 классов-друзей), вручную управлять порядком вызовов, передавать данные из одной подсистемы в другую и самостоятельно писать сложную логику отката:
 
-ПЛОХО: Клиент напрямую зависит от GpsAndDriverLogic, DispatchGateway, DispatchReservation,
-PricingAndReceiptLogic, BillingGateway, FareInvoice, PaymentAndRatingLogic, SettlementGateway, SettlementRecord
+##### 1.Таблица ответственности класса
 
-/*
-Представим что тут много кода
-*/
+Class                      |	Responsibility				
+PricingContext             |	Delegates fare computation to the currently assigned pricing algorithm				
+StandardPricingStrategy    |	Calculates fare using fixed per-kilometer rates	
+SurgePricingStrategy       |	Calculates fare multiplying base rate by external demand data				
+AirportFlatRateStrategy    |	Returns fixed flat fare applicable for airport trips		
+DriverMatchingContext      |	Delegates driver selection to the current matching algorithm				
+NearestDriverStrategy      |	Selects the driver having minimum physical distance to client				
+HighestRatedDriverStrategy |	Selects the driver holding maximum customer rating score				
+LongestIdleDriverStrategy  |	Selects the driver experiencing maximum waiting time
+StrategySelector           |	Determines optimal strategies evaluating current trip parameters automatically				
+DemandSensor               | 	Provides external real-time multiplier data for specific zones
 
 
-// ХОРОШО: Клиент знает только про Фасад и DTO запроса
-RideBookingFacade facade = new RideBookingFacade(storageDir);
-RideChainState state = facade.bookRide(request);
+##### 2. Стратегия против  состояния против  шаблонного метода
+   
+Почему в этом решении используется стратегия:
+В сфере такси требуются взаимозаменяемые алгоритмы для расчета стоимости поездки 
+и подбора водителей. Шаблон «Стратегия» выбран вместо шаблона «Состояние», 
+потому что контекст (PricingContext, DriverMatchingContext) не меняет свое поведение в 
+зависимости от внутренних переходов между состояниями. Поездка не переходит автоматически 
+из состояния «Стандарт» в состояние «Аэропорт». Клиент или селектор сам выбирает конкретный 
+алгоритм, необходимый для выполнения всей задачи.
 
+Шаблон «Стратегия» выбран вместо шаблонного метода, потому что эти алгоритмы полностью 
+различаются по механике выполнения, а не имеют общую основу. Шаблонный метод предполагает 
+наследование для переопределения отдельных шагов базового класса. В нашем решении используется 
+композиция: контекст делегирует всю задачу внешнему объекту, полностью изолируя алгоритмическую 
+логику от класса Context и соблюдая принцип открытости/закрытости.
 
-Почему для решения этой проблемы требуется фасад, а не адаптер? 
-
-Фундаментальное различие между шаблонами фасада и адаптера заключается в их предназначении, а не в количестве классов, которые они содержат. Адаптер используется, когда клиент ожидает получить определенный целевой интерфейс, но существующий компонент предлагает несовместимый интерфейс, который нуждается в переводе. В отличие от этого, наша система вызова такси не страдает от несовместимости интерфейсов; вместо этого она страдает от сложности координации и рабочего процесса в трех независимых подсистемах: диспетчерской (subsystema), биллинговой (subsystemb) и расчетной (subsystemc).   
-
-Заказ поездки требует строгой многоэтапной последовательности действий: расчет времени прибытия по GPS и подбор водителя в подсистеме A, расчет дополнительных цен и выставление счета в подсистеме B, а также списание средств с карты водителя при формировании запроса на оценку в подсистеме C. 
-Кроме того, если выставление счета (шаг B) отклоняет стоимость проезда из-за лимит бюджета участника или, если расчет (шаг C) не выполняется из-за отклоненной карты, система должна проверить надежное дисковое хранилище и выполнить многоуровневые компенсационные действия в обратном порядке (B, затем A). 
-Фасад (RideBookingFacade) решает эту проблему, предоставляя единую точку входа более высокого уровня (bookRide), которая координирует жизненный цикл, отслеживание сохраняемости и правила отката за кулисами, оставляя при этом подсистемы A, B и C доступными напрямую для автономных операций.
+##### 3. Ссылки на Git-рефакторинг
