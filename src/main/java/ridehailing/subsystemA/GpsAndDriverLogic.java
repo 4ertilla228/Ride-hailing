@@ -14,9 +14,9 @@ public class GpsAndDriverLogic {
         return (int) Math.ceil(distanceKm * 2.5);
     }
 
-    public String matchAvailableDriver(String pickupZone, double distanceKm){
-        if ("NO_DRIVER_ZONE".equalsIgnoreCase(pickupZone)){
-            throw new IllegalArgumentException("No available driver zone" + pickupZone);
+    public String matchAvailableDriver(String pickupZone, double distanceKm) {
+        if ("NO_DRIVERS_ZONE".equalsIgnoreCase(pickupZone)) {
+            throw new IllegalStateException("No available drivers in zone: " + pickupZone);
         }
         return "DRV-" + Math.abs(pickupZone.hashCode() % 900 + 100);
     }

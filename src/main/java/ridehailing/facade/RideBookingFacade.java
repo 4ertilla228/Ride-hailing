@@ -33,12 +33,12 @@ public class RideBookingFacade {
     }
 
     /**
-     * Единая операция для клиента: проводит поездку через подсистемы A -> B -> C.
+     Единая операция для клиента: проводит поездку через подсистемы A -> B -> C.
      */
     public RideChainState bookRide(RideRequest request) {
         String rideId = request.getRideId();
 
-        // ================= ШАГ A: Прием и резервирование водителя =================
+        //  ШАГ A: Прием и резервирование водителя
         try {
             int eta = logicA.calculateRouteEtaMinutes(
                     request.getPickupLocation(), request.getDropoffLocation(), request.getDistanceKm());
@@ -59,7 +59,7 @@ public class RideBookingFacade {
                     ChainStageStatus.REJECTED_AT_A, e);
         }
 
-        // ================= ШАГ B: Расчет цены и выпуск чека =================
+        //  ШАГ B: Расчет цены и выпуск чека
         double calculatedFare;
         try {
             DispatchReservation persistedA = gatewayA.findByRideId(rideId)
@@ -83,7 +83,7 @@ public class RideBookingFacade {
                     ChainStageStatus.COMPENSATED_A, e);
         }
 
-        // ================= ШАГ C: Оплата и инициализация рейтинга =================
+        // ШАГ C: Оплата и инициализация рейтинга
         try {
             FareInvoice persistedB = gatewayB.findByRideId(rideId)
                     .orElseThrow(() -> new IllegalStateException("Persisted state B missing on disk"));
