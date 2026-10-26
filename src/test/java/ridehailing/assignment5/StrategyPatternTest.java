@@ -3,8 +3,11 @@ package test.java.ridehailing.assignment5;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import test.java.ridehailing.assignment5.pricing.*;
-import test.java.ridehailing.assignment5.matching.*;
+
+import main.java.ridehailing.assignment5.DemandSensor;
+import main.java.ridehailing.assignment5.StrategySelector;
+import main.java.ridehailing.assignment5.pricing.*;
+import main.java.ridehailing.assignment5.matching.*;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -22,6 +25,8 @@ class StrategyPatternTest {
             new Driver("D3", 3.0, 4.5, 60)
     );
 
+    // --- 1. Тесты для каждой стратегии ценообразования ---
+
     @Test
     void standardPricingCalculatesCorrectly() {
         PricingStrategy strategy = new StandardPricingStrategy();
@@ -35,10 +40,23 @@ class StrategyPatternTest {
     }
 
     @Test
-    void selectorChoosesCorrectMatchingStrategy() {
-        StrategySelector selector = new StrategySelector();
-        assertTrue(selector.chooseMatchingStrategy(false, true) instanceof NearestDriverStrategy);
-        assertTrue(selector.chooseMatchingStrategy(true, false) instanceof HighestRatedDriverStrategy);
+    void airportFlatRateReturnsFixedFare() {
+        PricingStrategy strategy = new AirportFlatRateStrategy();
+        assertEquals(5000.0, strategy.calculateFare(25.0, 40));
+    }
+
+    // --- 2. Тесты для каждой стратегии подбора водителя ---
+
+    @Test
+    void nearestDriverIsSelected() {
+        DriverMatchingStrategy strategy = new NearestDriverStrategy();
+        assertEquals("D1", strategy.matchDriver(testDrivers).id());
+    }
+
+    @Test
+    void highestRatedDriverIsSelected() {
+        DriverMatchingStrategy strategy = new HighestRatedDriverStrategy();
+        assertEquals("D2", strategy.matchDriver(testDrivers).id());
     }
 
     @Test
@@ -47,7 +65,26 @@ class StrategyPatternTest {
         assertEquals("D3", strategy.matchDriver(testDrivers).id());
     }
 
-    // Параметризованный тест для всей семьи стратегий
+    // --- 3. Тесты для всех правил в StrategySelector ---
+
+    @Test
+    void selectorChoosesCorrectPricingStrategyForAllRules() {
+        StrategySelector selector = new StrategySelector();
+        assertTrue(selector.choosePricingStrategy(true, false, fakeSensor, "ZoneA") instanceof AirportFlatRateStrategy);
+        assertTrue(selector.choosePricingStrategy(false, true, fakeSensor, "ZoneA") instanceof SurgePricingStrategy);
+        assertTrue(selector.choosePricingStrategy(false, false, fakeSensor, "ZoneA") instanceof StandardPricingStrategy);
+    }
+
+    @Test
+    void selectorChoosesCorrectMatchingStrategyForAllRules() {
+        StrategySelector selector = new StrategySelector();
+        assertTrue(selector.chooseMatchingStrategy(false, true) instanceof NearestDriverStrategy);
+        assertTrue(selector.chooseMatchingStrategy(true, false) instanceof HighestRatedDriverStrategy);
+        assertTrue(selector.chooseMatchingStrategy(false, false) instanceof LongestIdleDriverStrategy);
+    }
+
+    // --- 4. Параметризованный тест для всей семьи стратегий ---
+
     static Stream<PricingStrategy> providePricingStrategies() {
         return Stream.of(
                 new StandardPricingStrategy(),
